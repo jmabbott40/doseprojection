@@ -1,14 +1,15 @@
 # doseprojection
 
-A Python toolkit for preclinical dose projection in drug discovery. Estimates efficacious doses for animal studies and projects human equivalent doses using established pharmacokinetic methods.
+A Python toolkit for preclinical dose projection in drug discovery. Estimates efficacious doses for animal studies and projects human equivalent doses using established pharmacokinetic methods. Supports **oral (PO)**, **intravenous (IV)**, and **subcutaneous (SC)** routes of administration.
 
 ## Features
 
+- **Multi-Route Dose Projection**: Project doses for PO, IV, and SC routes with route-appropriate bioavailability handling
 - **IVIVE (In Vitro to In Vivo Extrapolation)**: Predict hepatic clearance from microsomal stability data using the well-stirred model
 - **Allometric Scaling**: Scale PK parameters across species using simple allometry and the rule of exponents
 - **Dose Projection from IC50**: Estimate efficacious doses from in vitro potency, clearance, protein binding, and bioavailability
 - **Human Dose Estimation**: Calculate Human Equivalent Dose (HED) and Maximum Recommended Starting Dose (MRSD) from animal NOAEL
-- **Absorption Assessment**: Maximum Absorbable Dose (MAD), BCS classification, permeability classification
+- **Absorption Assessment**: Maximum Absorbable Dose (MAD), BCS classification, permeability classification (PO route only)
 
 ## Installation
 
@@ -28,24 +29,39 @@ result = ivive.ivive_workflow(t_half_min=30, fu=0.1, species="human")
 print(f"Predicted human CLh: {result['cl_hepatic_mL_min_kg']:.1f} mL/min/kg")
 print(f"Hepatic bioavailability (Fh): {result['fh']:.2f}")
 
-# --- Dose projection from IC50 ---
-dose = dose_projection.efficacious_dose_mg_kg(
+# --- Oral dose projection from IC50 ---
+dose_po = dose_projection.efficacious_dose_mg_kg(
     ic50_nm=100,       # IC50 in nM
     mw=400,            # Molecular weight
-    cl_mL_min_kg=25,   # Rat clearance
+    cl_mL_min_kg=25,   # Clearance
     fu=0.1,            # Fraction unbound
-    f=0.5,             # Oral bioavailability
     tau_h=24,          # Once daily dosing
-    coverage_multiple=1.0
+    f=0.5,             # Oral bioavailability
+    route="po"         # Route of administration
 )
-print(f"Projected efficacious dose: {dose:.1f} mg/kg")
+print(f"Projected PO dose: {dose_po:.1f} mg/kg")
+
+# --- IV dose projection (F is automatically 1.0) ---
+dose_iv = dose_projection.efficacious_dose_mg_kg(
+    ic50_nm=100, mw=400, cl_mL_min_kg=25, fu=0.1, tau_h=24,
+    route="iv"         # No F needed — set to 1.0 automatically
+)
+print(f"Projected IV dose: {dose_iv:.1f} mg/kg")
+
+# --- SC dose projection (uses SC-specific bioavailability) ---
+dose_sc = dose_projection.efficacious_dose_mg_kg(
+    ic50_nm=100, mw=400, cl_mL_min_kg=25, fu=0.1, tau_h=24,
+    f=0.7,             # SC bioavailability (not oral F)
+    route="sc"
+)
+print(f"Projected SC dose: {dose_sc:.1f} mg/kg")
 
 # --- Human equivalent dose from rat NOAEL ---
 result = human_dose.hed_from_noael(noael_mg_kg=50, species="rat")
 print(f"HED: {result['hed_mg_kg']:.1f} mg/kg")
 print(f"MRSD: {result['mrsd_mg_kg']:.2f} mg/kg ({result['mrsd_total_mg']:.0f} mg total)")
 
-# --- Check absorption feasibility ---
+# --- Check absorption feasibility (PO only) ---
 d0 = absorption.dose_number(dose_mg=500, solubility_mg_mL=0.1)
 print(f"Dose number: {d0['dose_number']:.1f} — {d0['interpretation']}")
 ```
@@ -58,9 +74,9 @@ print(f"Dose number: {d0['dose_number']:.1f} — {d0['interpretation']}")
 | `io.py` | Load in vitro and PK data from CSV/Excel with validation |
 | `ivive.py` | Microsomal CLint → hepatic clearance (well-stirred model) |
 | `allometry.py` | Allometric scaling, rule of exponents |
-| `dose_projection.py` | IC50-based and PK-based dose projection |
+| `dose_projection.py` | IC50-based and PK-based dose projection (PO, IV, SC routes) |
 | `human_dose.py` | HED from NOAEL, MRSD, interspecies BSA conversion |
-| `absorption.py` | MAD, dose number, BCS/permeability classification |
+| `absorption.py` | MAD, dose number, BCS/permeability classification (PO route only) |
 | `utils.py` | Unit conversions (nM↔uM↔mg/mL, etc.) |
 
 ## Key Equations
@@ -69,7 +85,7 @@ print(f"Dose number: {d0['dose_number']:.1f} — {d0['interpretation']}")
 ```
 Dose (mg/kg) = (IC50 × CL × τ) / (fu × F)
 ```
-Where IC50 is the target unbound concentration, CL is clearance, τ is dosing interval, fu is fraction unbound, and F is oral bioavailability.
+Where IC50 is the target unbound concentration, CL is clearance, τ is dosing interval, fu is fraction unbound, and F is route-dependent bioavailability (see table below).
 
 ### IVIVE — Well-Stirred Model
 ```
@@ -90,24 +106,128 @@ Y_human = a × BW^b
 ```
 Standard exponents: CL (b=0.75), Vss (b=1.0), t½ (b=0.25).
 
-### Maximum Absorbable Dose
+### Maximum Absorbable Dose (PO only)
 ```
 MAD = Solubility × ka × SIWV × Transit Time
 ```
 
+## Route of Administration
+
+All dose projection functions accept a `route` parameter (`"po"`, `"iv"`, or `"sc"`). The core equation is the same across routes — only the bioavailability term (F) changes.
+
+### How F is handled per route
+
+| Route | `route=` | F parameter | What F represents |
+|---|---|---|---|
+| **Oral (PO)** | `"po"` | Required | Oral bioavailability (Fa × Fg × Fh) |
+| **Intravenous (IV)** | `"iv"` | Ignored (auto = 1.0) | Complete bioavailability by definition |
+| **Subcutaneous (SC)** | `"sc"` | Required | SC bioavailability (typically 0.5–1.0) |
+
+### What applies to each route
+
+| Module / Concept | PO | IV | SC |
+|---|---|---|---|
+| Dose projection (`dose_projection.py`) | ✅ | ✅ | ✅ |
+| IVIVE — clearance prediction (`ivive.py`) | ✅ | ✅ | ✅ |
+| Allometric scaling (`allometry.py`) | ✅ | ✅ | ✅ |
+| HED / MRSD (`human_dose.py`) | ✅ | ✅ | ✅ |
+| Protein binding / fu | ✅ | ✅ | ✅ |
+| Absorption: MAD, dose number (`absorption.py`) | ✅ | ❌ Not applicable | ❌ Not applicable |
+| BCS / permeability classification | ✅ | ❌ Not applicable | ❌ Not applicable |
+| Caco-2 / PAMPA permeability data | ✅ | ❌ Not applicable | ❌ Not applicable |
+
+### Route-specific usage examples
+
+```python
+from doseprojection.dose_projection import project_animal_dose
+
+# PO — requires oral bioavailability
+po = project_animal_dose(
+    ic50_nm=100, mw=400, cl_animal_mL_min_kg=25,
+    fu_animal=0.1, tau_h=24,
+    f_animal=0.45, route="po"
+)
+
+# IV — F is automatically 1.0, no f_animal needed
+iv = project_animal_dose(
+    ic50_nm=100, mw=400, cl_animal_mL_min_kg=25,
+    fu_animal=0.1, tau_h=24,
+    route="iv"
+)
+
+# SC — requires SC-specific bioavailability
+sc = project_animal_dose(
+    ic50_nm=100, mw=400, cl_animal_mL_min_kg=25,
+    fu_animal=0.1, tau_h=24,
+    f_animal=0.70, route="sc"
+)
+
+# IV always gives the lowest dose (F=1 means no absorption loss)
+print(f"IV: {iv['dose_mg_kg']:.1f} mg/kg")
+print(f"SC: {sc['dose_mg_kg']:.1f} mg/kg")
+print(f"PO: {po['dose_mg_kg']:.1f} mg/kg")
+```
+
+### Notes on parenteral routes
+
+- **IV**: Clearance (CL) from IV PK studies is the systemic clearance. No absorption phase exists, so Caco-2 permeability, solubility-limited absorption, MAD, and BCS classification are not relevant. Solubility still matters for formulation (solution concentration for injection volume), but this is a formulation constraint rather than an absorption assessment.
+- **SC**: Bioavailability (F_sc) must be determined from SC PK studies (comparing SC AUC to IV AUC). SC absorption is from the injection site into systemic circulation — it is not GI absorption, so Caco-2/PAMPA permeability and BCS classification do not apply. SC absorption rate can affect Cmax and time-to-peak but the steady-state dose equation remains the same.
+- **Clearance, protein binding, IVIVE, allometric scaling, and HED/MRSD** are all route-independent — they describe drug disposition after the drug reaches systemic circulation.
+
 ## Data Input Format
 
-### In Vitro Data (CSV/Excel)
-Required: `compound_id`, `IC50_nM`
+Two input files are used: one for in vitro data (one row per compound) and one for PK data (one row per compound × species × route).
 
-Optional: `target`, `solubility_ug_mL`, `formulation`, `fu_plasma_human`, `fu_plasma_rat`, `fu_plasma_mouse`, `microsomal_t_half_min_human`, `microsomal_t_half_min_rat`, `papp_caco2_cm_s`, `papp_pampa_cm_s`, `MW`, `study_id`, `notes`
+### In Vitro Data (CSV/Excel) — one row per compound
 
-### PK Data (CSV/Excel)
-Required: `compound_id`, `species`
+| Column | Required? | Units | Description |
+|---|---|---|---|
+| `compound_id` | **Required** | — | Unique compound identifier |
+| `IC50_nM` | **Required** | nM | IC50 value |
+| `target` | Optional | — | Pharmacological target name |
+| `MW` | Optional* | g/mol | Molecular weight |
+| `fu_plasma_human` | Optional* | 0–1 | Fraction unbound, human plasma |
+| `fu_plasma_rat` | Optional* | 0–1 | Fraction unbound, rat plasma |
+| `fu_plasma_mouse` | Optional | 0–1 | Fraction unbound, mouse plasma |
+| `solubility_ug_mL` | Optional* | µg/mL | Aqueous solubility |
+| `formulation` | Optional | — | Vehicle/formulation used |
+| `microsomal_t_half_min_human` | Optional* | min | Human microsomal stability t½ |
+| `microsomal_t_half_min_rat` | Optional | min | Rat microsomal stability t½ |
+| `papp_caco2_cm_s` | Optional | cm/s | Caco-2 permeability (PO route only) |
+| `papp_pampa_cm_s` | Optional | cm/s | PAMPA permeability (PO route only) |
+| `IC50_uM` | Optional | µM | Auto-calculated from IC50_nM if absent |
+| `study_id` | Optional | — | Study identifier |
+| `notes` | Optional | — | Free text |
 
-Optional: `route`, `dose_mg_kg`, `CL_mL_min_kg`, `Vss_L_kg`, `F_pct`, `t_half_h`, `Cmax_ng_mL`, `AUC_ng_h_mL`, `study_id`, `notes`
+*\*Needed for specific calculations: MW for dose in mg/kg, fu for dose projection, microsomal t½ for IVIVE, solubility for absorption assessment (PO only).*
 
-See `examples/` for sample data files.
+### PK Data (CSV/Excel) — one row per compound × species × route
+
+| Column | Required? | Units | Description |
+|---|---|---|---|
+| `compound_id` | **Required** | — | Must match in vitro file |
+| `species` | **Required** | — | `rat`, `mouse`, `dog`, `monkey` |
+| `route` | Optional | — | `IV`, `PO`, or `SC` |
+| `dose_mg_kg` | Optional | mg/kg | Dose administered |
+| `CL_mL_min_kg` | Optional | mL/min/kg | Clearance (typically from IV studies) |
+| `Vss_L_kg` | Optional | L/kg | Volume of distribution (typically from IV) |
+| `F_pct` | Optional | % | Bioavailability (PO or SC, relative to IV) |
+| `t_half_h` | Optional | hours | Terminal half-life |
+| `Cmax_ng_mL` | Optional | ng/mL | Peak concentration |
+| `AUC_ng_h_mL` | Optional | ng·h/mL | Area under the curve |
+| `study_id` | Optional | — | Study identifier |
+| `notes` | Optional | — | Free text |
+
+**Row structure:** A compound typically has **multiple rows** — one for each route tested. IV rows provide CL and Vss (leave F_pct blank). PO and SC rows provide F_pct, Cmax, AUC (leave CL/Vss blank). Example:
+
+```
+compound_id,species,route,dose_mg_kg,CL_mL_min_kg,Vss_L_kg,F_pct,t_half_h,AUC_ng_h_mL,study_id
+CPD-001,rat,IV,2,25,1.5,,1.2,4800,PK-001
+CPD-001,rat,PO,10,,,45,1.8,13500,PK-001
+CPD-001,rat,SC,5,,,72,1.5,8640,PK-001
+```
+
+See `examples/` for complete sample data files.
 
 ## Jupyter Notebooks
 
@@ -117,7 +237,7 @@ Interactive examples in `notebooks/`:
 2. **02_ivive_clearance** — IVIVE workflow from microsomal t½ to CLh
 3. **03_dose_projection** — IC50-based dose projection for animal studies
 4. **04_human_dose_estimation** — HED and MRSD from animal NOAEL
-5. **05_full_workflow** — End-to-end dose projection pipeline
+5. **05_full_workflow** — End-to-end dose projection pipeline with PO/IV/SC route comparison
 
 ## Physiological Constants
 
@@ -166,6 +286,8 @@ The following data/context improves dose projection accuracy when available:
 - **Dose-response data from efficacy models** — provides empirical target exposure
 - **Formulation composition details** — critical for compounds with low solubility (BCS II/IV)
 - **Food effect assessment** — can significantly alter oral absorption
+- **SC bioavailability data** — SC F must be measured (SC AUC / IV AUC); cannot be predicted from in vitro data like oral F
+- **Injection site absorption rate (SC)** — affects Cmax and Tmax for SC dosing; not captured by steady-state equations
 
 ## Running Tests
 

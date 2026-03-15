@@ -1,0 +1,13 @@
+compound_id,species,route,dose_mg_kg,CL_mL_min_kg,Vss_L_kg,F_pct,t_half_h,Cmax_ng_mL,AUC_ng_h_mL,study_id,notes
+CPD-001,rat,IV,2,25,1.5,,1.2,,4800,PK-001,Cassette dosing n=3
+CPD-001,rat,PO,10,,,45,1.8,850,13500,PK-001,Suspension in 0.5% MC
+CPD-001,mouse,IV,5,55,2.0,,0.8,,5400,PK-002,Discrete dosing n=3
+CPD-001,mouse,PO,30,,,38,1.0,2200,34200,PK-002,Suspension in 0.5% MC
+CPD-002,rat,IV,2,15,2.2,,2.5,,8000,PK-003,Cassette dosing n=3
+CPD-002,rat,PO,10,,,62,3.0,520,24800,PK-003,Suspension in 0.5% MC
+CPD-003,rat,IV,1,45,0.8,,0.4,,1333,PK-004,Solution in PEG400/Solutol
+CPD-003,rat,PO,10,,,12,0.6,180,1600,PK-004,Suspension - low exposure
+CPD-004,rat,IV,2,8,3.5,,5.0,,15000,PK-005,Cassette dosing n=3
+CPD-004,rat,PO,10,,,78,6.2,480,46800,PK-005,Suspension in 0.5% MC
+CPD-005,rat,IV,1,35,1.0,,0.5,,1714,PK-006,Solution dosing
+CPD-005,rat,PO,10,,,8,0.7,50,685,PK-006,Very low oral exposure

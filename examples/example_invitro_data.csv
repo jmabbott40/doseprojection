@@ -1,0 +1,6 @@
+compound_id,target,IC50_nM,solubility_ug_mL,formulation,fu_plasma_human,fu_plasma_rat,fu_plasma_mouse,microsomal_t_half_min_human,microsomal_t_half_min_rat,papp_caco2_cm_s,papp_pampa_cm_s,MW,study_id,notes
+CPD-001,Kinase_A,15,85,0.5% MC/0.5% Tween 80,0.05,0.08,0.10,45,22,18e-6,22e-6,450,STUDY-001,Lead compound
+CPD-002,Kinase_A,42,120,0.5% MC/0.5% Tween 80,0.12,0.15,0.18,90,55,25e-6,30e-6,380,STUDY-001,Backup compound
+CPD-003,Kinase_A,8,12,PEG400/Solutol (70/30),0.02,0.04,0.05,15,8,5e-6,8e-6,520,STUDY-001,Potent but low solubility
+CPD-004,Kinase_B,250,200,0.5% MC,0.35,0.40,0.42,120,80,30e-6,35e-6,320,STUDY-002,Selective for Kinase_B
+CPD-005,Kinase_A,100,5,Amorphous solid dispersion,0.08,0.12,0.14,60,35,0.5e-6,1e-6,550,STUDY-003,Poor solubility and permeability

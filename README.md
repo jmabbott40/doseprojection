@@ -19,7 +19,84 @@ cd doseprojection
 pip install -e .
 ```
 
-## Quick Start
+## Command-Line Usage (Step by Step)
+
+For users who want to run projections without writing Python code. All you need are two CSV files (in vitro data and PK data) — see [Data Input Format](#data-input-format) below for column requirements.
+
+### Step 1: Install
+
+Open your terminal (Mac: Terminal app; Windows: Command Prompt or PowerShell) and run:
+
+```bash
+git clone https://github.com/jmabbott40/doseprojection.git
+cd doseprojection
+pip install -e .
+```
+
+If `pip` is not found, try `pip3 install -e .` instead.
+
+### Step 2: Run with Example Data
+
+Test that everything works using the included example files:
+
+```bash
+python run_projection.py examples/example_invitro_data.csv examples/example_pk_data.csv
+```
+
+This projects oral (PO) doses for all compounds in the example data using rat PK, once-daily dosing, at 1x IC50 coverage.
+
+### Step 3: Run with Your Own Data
+
+Replace the file paths with your own CSV files:
+
+```bash
+python run_projection.py my_invitro_data.csv my_pk_data.csv
+```
+
+### Step 4: Customize the Run
+
+Add flags to change route, species, dosing interval, or coverage:
+
+```bash
+# IV dosing (no bioavailability needed):
+python run_projection.py my_invitro.csv my_pk.csv --route iv
+
+# Subcutaneous dosing:
+python run_projection.py my_invitro.csv my_pk.csv --route sc
+
+# BID dosing (every 12 hours) with 3x IC50 coverage:
+python run_projection.py my_invitro.csv my_pk.csv --tau 12 --coverage 3
+
+# Include HED/MRSD from a 50 mg/kg NOAEL:
+python run_projection.py my_invitro.csv my_pk.csv --noael 50
+
+# Mouse instead of rat:
+python run_projection.py my_invitro.csv my_pk.csv --species mouse
+```
+
+### Step 5: Save Results to a File
+
+Add `--output` (or `-o`) to save a CSV you can open in Excel:
+
+```bash
+python run_projection.py my_invitro.csv my_pk.csv --output results.csv
+```
+
+### All Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--route` | `po` | Route of administration: `po`, `iv`, or `sc` |
+| `--species` | `rat` | Species for PK data: `rat`, `mouse`, `dog`, `monkey` |
+| `--tau` | `24` | Dosing interval in hours (24=QD, 12=BID, 8=TID) |
+| `--coverage` | `1.0` | IC50 coverage multiple (e.g., 3 for 3x IC50) |
+| `--noael` | *(none)* | NOAEL in mg/kg — adds HED/MRSD to output |
+| `--output` / `-o` | *(none)* | Save results to this CSV file |
+| `--quiet` / `-q` | off | Suppress warning messages |
+
+Run `python run_projection.py --help` for the full help text.
+
+## Quick Start (Python API)
 
 ```python
 from doseprojection import ivive, dose_projection, human_dose, absorption
